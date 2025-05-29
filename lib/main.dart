@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-//main function
+import 'trigonometric.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -52,20 +53,22 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _operation = '';
         _firstNumber = 0;
         _waitingForSecondNumber = false;
-      } else if (buttonText == '%' || buttonText == '!') {
+      } 
+      else if (buttonText == '%' || buttonText == '!') {
         try {
           final value = double.parse(_display);
           double result = buttonText == '%' ? value / 100 : _factorial(value);
           final formatted = _formatResult(result);
           
-          if (_history.length >= 4) _history.removeAt(0); // Remove oldest entry
+          if (_history.length >= 4) _history.removeAt(0);
           _history.add('$value$buttonText = $formatted');
           
           _display = formatted;
         } catch (e) {
           _display = 'Error';
         }
-      } else if (buttonText == '=') {
+      } 
+      else if (buttonText == '=') {
         if (_operation.isEmpty) return;
         
         try {
@@ -111,8 +114,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           }
 
           final formatted = _formatResult(result);
-          if (_history.length >= 4) _history.removeAt(0); // Remove oldest entry
-          _history.add('$expression = $formatted');
+          if (_history.length >= 4) _history.removeAt(0);
+          _history.insert(0, '$expression = $formatted');
           
           _display = formatted;
           _operation = '';
@@ -120,12 +123,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         } catch (e) {
           _display = 'Error';
         }
-      } else if (['+', '-', '×', '÷', '^', '√', 'P', 'C'].contains(buttonText)) {
+      } 
+      else if (['sin', 'cos', 'tan', 'cosec', 'sec', 'cot'].contains(buttonText)) {
+        _handleTrigonometricOperation(buttonText);
+      }
+      else if (['+', '-', '×', '÷', '^', '√', 'P', 'C'].contains(buttonText)) {
         _firstNumber = double.parse(_display);
         _operation = buttonText;
         _waitingForSecondNumber = true;
         _display = '0';
-      } else {
+      } 
+      else {
         if (_display == '0' || _waitingForSecondNumber || _display == 'Error') {
           _display = buttonText;
           _waitingForSecondNumber = false;
@@ -138,8 +146,25 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
+  void _handleTrigonometricOperation(String operation) {
+    final currentValue = double.tryParse(_display) ?? 0;
+    
+    try {
+      final calculation = Trigonometric.calculate(currentValue, operation);
+      final formattedResult = _formatResult(calculation['result']!);
+      
+      if (_history.length >= 4) _history.removeAt(0);
+      _history.add('${calculation['displayText']} = $formattedResult');
+      
+      _display = formattedResult;
+      _waitingForSecondNumber = true;
+    } catch (e) {
+      _display = 'Error';
+    }
+  }
+
   double _factorial(double n) {
-    if (n < 0 || n > 20) return double.nan; // Limit to prevent overflow
+    if (n < 0 || n > 20) return double.nan;
     if (n < 2) return 1;
     double result = 1;
     for (int i = 2; i <= n; i++) {
@@ -204,7 +229,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         builder: (context, constraints) {
           return Column(
             children: [
-              // History Display - Most recent at bottom
+              // History Display
               Container(
                 height: constraints.maxHeight * 0.2,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -255,12 +280,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   padding: const EdgeInsets.all(8.0),
                   child: Column(
                     children: [
+                      // Trigonometric functions row
                       Expanded(
                         child: Row(
                           children: [
-                            _buildButton('AC', color: Colors.grey),
-                            _buildButton('!', color: Colors.blue),
-                            _buildButton('^', color: Colors.blue),
+                            _buildButton('sin', color: Colors.purple),
+                            _buildButton('cos', color: Colors.purple),
+                            _buildButton('tan', color: Colors.purple),
                             _buildButton('√', color: Colors.blue),
                           ],
                         ),
@@ -268,9 +294,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       Expanded(
                         child: Row(
                           children: [
+                            _buildButton('cosec', color: Colors.purple),
+                            _buildButton('sec', color: Colors.purple),
+                            _buildButton('cot', color: Colors.purple),
+                            _buildButton('^', color: Colors.blue),
+                          ],
+                        ),
+                      ),
+                      // Rest of the calculator buttons
+                      Expanded(
+                        child: Row(
+                          children: [
+                            _buildButton('AC', color: Colors.grey),
+                            _buildButton('!', color: Colors.blue),
                             _buildButton('P', color: Colors.blue),
-                            _buildButton('C', color: Colors.blue),
-                            _buildButton('%', color: Colors.grey),
                             _buildButton('÷', color: Colors.orange),
                           ],
                         ),
