@@ -103,8 +103,8 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
           _display = 'Error';
         }
       } 
-      else if (['sin', 'cos', 'tan', 'cosec', 'sec', 'cot'].contains(buttonText)) {
-        _handleTrigonometricOperation(buttonText);
+      else if (['sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'e^x', 'ln', 'log', '√x'].contains(buttonText)) {
+        _handleUnaryOperation(buttonText);
       }
       else if (['+', '-', '×', '÷', '^', '√', 'P', 'C'].contains(buttonText)) {
         _firstNumber = double.parse(_display);
@@ -125,13 +125,52 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
     });
   }
 
-  void _handleTrigonometricOperation(String operation) {
-    final currentValue = double.tryParse(_display) ?? 0;
+  void _handleUnaryOperation(String operation) {
+    final value = double.tryParse(_display) ?? 0;
     
     try {
-      final calculation = Trigonometric.calculate(currentValue, operation);
+      Map<String, dynamic> calculation;
+      switch (operation) {
+        case 'sin':
+        case 'cos':
+        case 'tan':
+        case 'cosec':
+        case 'sec':
+        case 'cot':
+          calculation = _handleTrigonometricOperation(value, operation);
+          break;
+        case 'e^x':
+          calculation = {
+            'result': exp(value),
+            'displayText': 'e^$value',
+          };
+          break;
+        case 'ln':
+          if (value <= 0) throw Exception('ln undefined for non-positive');
+          calculation = {
+            'result': log(value),
+            'displayText': 'ln($value)',
+          };
+          break;
+        case 'log':
+          if (value <= 0) throw Exception('log undefined for non-positive');
+          calculation = {
+            'result': log(value) / ln10,
+            'displayText': 'log($value)',
+          };
+          break;
+        case '√x':
+          if (value < 0) throw Exception('Square root of negative');
+          calculation = {
+            'result': sqrt(value),
+            'displayText': '√($value)',
+          };
+          break;
+        default:
+          throw Exception('Unsupported unary operation');
+      }
+
       final formattedResult = _formatResult(calculation['result']!);
-      
       if (_history.length >= 4) _history.removeAt(0);
       _history.add('${calculation['displayText']} = $formattedResult');
       
@@ -140,6 +179,52 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
     } catch (e) {
       _display = 'Error';
     }
+  }
+
+  Map<String, dynamic> _handleTrigonometricOperation(double degrees, String operation) {
+    final radians = degrees * pi / 180;
+    double result;
+    String displayText;
+    
+    switch (operation) {
+      case 'sin':
+        result = sin(radians);
+        displayText = 'sin(${degrees.toStringAsFixed(2)}°)';
+        break;
+      case 'cos':
+        result = cos(radians);
+        displayText = 'cos(${degrees.toStringAsFixed(2)}°)';
+        break;
+      case 'tan':
+        result = tan(radians);
+        displayText = 'tan(${degrees.toStringAsFixed(2)}°)';
+        if (result.abs() > 1e10) {
+          throw Exception('Undefined');
+        }
+        break;
+      case 'cosec':
+        if (sin(radians).abs() < 1e-10) throw Exception('Undefined');
+        result = 1 / sin(radians);
+        displayText = 'cosec(${degrees.toStringAsFixed(2)}°)';
+        break;
+      case 'sec':
+        if (cos(radians).abs() < 1e-10) throw Exception('Undefined');
+        result = 1 / cos(radians);
+        displayText = 'sec(${degrees.toStringAsFixed(2)}°)';
+        break;
+      case 'cot':
+        if (tan(radians).abs() < 1e-10) throw Exception('Undefined');
+        result = 1 / tan(radians);
+        displayText = 'cot(${degrees.toStringAsFixed(2)}°)';
+        break;
+      default:
+        throw Exception('Invalid operation');
+    }
+
+    return {
+      'result': result,
+      'displayText': displayText,
+    };
   }
 
   double _factorial(double n) {
@@ -266,7 +351,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                             _buildButton('sin', color: Colors.purple),
                             _buildButton('cos', color: Colors.purple),
                             _buildButton('tan', color: Colors.purple),
-                            _buildButton('√', color: Colors.blue),
+                            _buildButton('√x', color: Colors.blue), // Changed to √x
                           ],
                         ),
                       ),
@@ -276,7 +361,17 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                             _buildButton('cosec', color: Colors.purple),
                             _buildButton('sec', color: Colors.purple),
                             _buildButton('cot', color: Colors.purple),
-                            _buildButton('^', color: Colors.blue),
+                            _buildButton('e^x', color: Colors.blue), // Added e^x
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            _buildButton('ln', color: Colors.blue), // Added ln
+                            _buildButton('log', color: Colors.blue), // Added log
+                            _buildButton('P', color: Colors.blue),
+                            _buildButton('÷', color: Colors.orange),
                           ],
                         ),
                       ),
@@ -285,8 +380,8 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                           children: [
                             _buildButton('AC', color: Colors.grey),
                             _buildButton('!', color: Colors.blue),
-                            _buildButton('P', color: Colors.blue),
-                            _buildButton('÷', color: Colors.orange),
+                            _buildButton('C', color: Colors.blue),
+                            _buildButton('×', color: Colors.orange),
                           ],
                         ),
                       ),
@@ -296,7 +391,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                             _buildButton('7'),
                             _buildButton('8'),
                             _buildButton('9'),
-                            _buildButton('×', color: Colors.orange),
+                            _buildButton('-', color: Colors.orange),
                           ],
                         ),
                       ),
@@ -306,7 +401,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                             _buildButton('4'),
                             _buildButton('5'),
                             _buildButton('6'),
-                            _buildButton('-', color: Colors.orange),
+                            _buildButton('+', color: Colors.orange),
                           ],
                         ),
                       ),
@@ -316,7 +411,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                             _buildButton('1'),
                             _buildButton('2'),
                             _buildButton('3'),
-                            _buildButton('+', color: Colors.orange),
+                            _buildButton('^', color: Colors.blue),
                           ],
                         ),
                       ),
@@ -338,53 +433,5 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
         },
       ),
     );
-  }
-}
-
-class Trigonometric {
-  static Map<String, dynamic> calculate(double degrees, String operation) {
-    final radians = degrees * pi / 180;
-    double result;
-    String displayText;
-    
-    switch (operation) {
-      case 'sin':
-        result = sin(radians);
-        displayText = 'sin(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'cos':
-        result = cos(radians);
-        displayText = 'cos(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'tan':
-        result = tan(radians);
-        displayText = 'tan(${degrees.toStringAsFixed(2)}°)';
-        if (result.abs() > 1e10) {
-          throw Exception('Undefined');
-        }
-        break;
-      case 'cosec':
-        if (sin(radians).abs() < 1e-10) throw Exception('Undefined');
-        result = 1 / sin(radians);
-        displayText = 'cosec(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'sec':
-        if (cos(radians).abs() < 1e-10) throw Exception('Undefined');
-        result = 1 / cos(radians);
-        displayText = 'sec(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'cot':
-        if (tan(radians).abs() < 1e-10) throw Exception('Undefined');
-        result = 1 / tan(radians);
-        displayText = 'cot(${degrees.toStringAsFixed(2)}°)';
-        break;
-      default:
-        throw Exception('Invalid operation');
-    }
-
-    return {
-      'result': result,
-      'displayText': displayText,
-    };
   }
 }
