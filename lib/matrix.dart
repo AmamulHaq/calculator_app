@@ -58,18 +58,21 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
   }
 
   List<List<double>> _getMatrixA() {
-    return _matrixAControllers.map((row) =>
-        row.map((c) => double.tryParse(c.text) ?? 0).toList()).toList();
+    return _matrixAControllers
+        .map((row) => row.map((c) => double.tryParse(c.text) ?? 0).toList())
+        .toList();
   }
 
   List<List<double>> _getMatrixB() {
-    return _matrixBControllers.map((row) =>
-        row.map((c) => double.tryParse(c.text) ?? 0).toList()).toList();
+    return _matrixBControllers
+        .map((row) => row.map((c) => double.tryParse(c.text) ?? 0).toList())
+        .toList();
   }
 
   String _matrixToString(List<List<double>> matrix) {
-    return matrix.map((row) =>
-        row.map((val) => val.toStringAsFixed(2)).join('\t')).join('\n');
+    return matrix
+        .map((row) => row.map((val) => val.toStringAsFixed(2)).join('\t'))
+        .join('\n');
   }
 
   void _addToHistory(String operation, String result) {
@@ -105,17 +108,41 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
     final matrixA = _getMatrixA();
     final matrixB = _getMatrixB();
 
-    if (matrixA.length != matrixB.length || matrixA[0].length != matrixB[0].length) {
+    if (matrixA.length != matrixB.length ||
+        matrixA[0].length != matrixB[0].length) {
       setState(() => _result = 'Error: Matrices must be same size');
       return;
     }
 
-    final result = List.generate(matrixA.length, (i) =>
-        List.generate(matrixA[0].length, (j) => matrixA[i][j] + matrixB[i][j]));
+    final result = List.generate(
+        matrixA.length,
+        (i) => List.generate(
+            matrixA[0].length, (j) => matrixA[i][j] + matrixB[i][j]));
 
     setState(() {
       _result = 'Result:\n${_matrixToString(result)}';
       _addToHistory('Addition', _result);
+    });
+  }
+
+  void _performSubtraction() {
+    final matrixA = _getMatrixA();
+    final matrixB = _getMatrixB();
+
+    if (matrixA.length != matrixB.length ||
+        matrixA[0].length != matrixB[0].length) {
+      setState(() => _result = 'Error: Matrices must be same size');
+      return;
+    }
+
+    final result = List.generate(
+        matrixA.length,
+        (i) => List.generate(
+            matrixA[0].length, (j) => matrixA[i][j] - matrixB[i][j]));
+
+    setState(() {
+      _result = 'Result:\n${_matrixToString(result)}';
+      _addToHistory('Subtraction', _result);
     });
   }
 
@@ -143,6 +170,73 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
     });
   }
 
+  double _calculateDeterminant(List<List<double>> matrix) {
+    int n = matrix.length;
+    if (n == 1) return matrix[0][0];
+    if (n == 2) {
+      return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+    }
+
+    double det = 0;
+    for (int col = 0; col < n; col++) {
+      List<List<double>> submatrix = [];
+      for (int i = 1; i < n; i++) {
+        List<double> row = [];
+        for (int j = 0; j < n; j++) {
+          if (j != col) row.add(matrix[i][j]);
+        }
+        submatrix.add(row);
+      }
+      det += matrix[0][col] *
+          _calculateDeterminant(submatrix) *
+          ((col % 2 == 0) ? 1 : -1);
+    }
+    return det;
+  }
+
+  List<List<double>> _transposeMatrix(List<List<double>> matrix) {
+    int m = matrix.length;
+    int n = matrix[0].length;
+    return List.generate(n, (j) => List.generate(m, (i) => matrix[i][j]));
+  }
+
+  List<List<double>> _calculateCofactor(List<List<double>> matrix) {
+    int n = matrix.length;
+    List<List<double>> cof =
+        List.generate(n, (_) => List.filled(n, 0.0));
+
+    for (int i = 0; i < n; i++) {
+      for (int j = 0; j < n; j++) {
+        List<List<double>> sub = [];
+        for (int r = 0; r < n; r++) {
+          if (r == i) continue;
+          List<double> row = [];
+          for (int c = 0; c < n; c++) {
+            if (c == j) continue;
+            row.add(matrix[r][c]);
+          }
+          sub.add(row);
+        }
+        double minor = _calculateDeterminant(sub);
+        cof[i][j] = minor * (((i + j) % 2 == 0) ? 1 : -1);
+      }
+    }
+    return cof;
+  }
+
+  List<List<double>> _calculateAdjugate(List<List<double>> matrix) {
+    return _transposeMatrix(_calculateCofactor(matrix));
+  }
+
+  List<List<double>> _calculateInverse(List<List<double>> matrix) {
+    double det = _calculateDeterminant(matrix);
+    if (det == 0) throw Exception("Matrix is singular and cannot be inverted.");
+    List<List<double>> adj = _calculateAdjugate(matrix);
+    int n = matrix.length;
+    return List.generate(
+        n, (i) => List.generate(n, (j) => adj[i][j] / det));
+  }
+
   void _performDeterminant() {
     final matrix = _getMatrixA();
     if (matrix.length != matrix[0].length) {
@@ -161,23 +255,53 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
     }
   }
 
-  double _calculateDeterminant(List<List<double>> matrix) {
-    if (matrix.length == 1) return matrix[0][0];
-    if (matrix.length == 2) {
-      return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
-    }
-
-    double det = 0;
-    for (int i = 0; i < matrix.length; i++) {
-      final minor = List.generate(matrix.length - 1, (k) =>
-          List.generate(matrix.length - 1, (l) =>
-              matrix[k + 1][l < i ? l : l + 1]));
-      det += matrix[0][i] * pow(-1, i) * _calculateDeterminant(minor);
-    }
-    return det;
+  void _performTranspose() {
+    final matrix = _getMatrixA();
+    final transposed = _transposeMatrix(matrix);
+    setState(() {
+      _result = 'Result:\n${_matrixToString(transposed)}';
+      _addToHistory('Transpose', _result);
+    });
   }
 
-  Widget _buildMatrixInput(String title, List<List<TextEditingController>> controllers) {
+  void _performAdjugate() {
+    final matrix = _getMatrixA();
+    if (matrix.length != matrix[0].length) {
+      setState(() => _result = 'Error: Matrix must be square');
+      return;
+    }
+
+    try {
+      final adj = _calculateAdjugate(matrix);
+      setState(() {
+        _result = 'Result:\n${_matrixToString(adj)}';
+        _addToHistory('Adjugate', _result);
+      });
+    } catch (e) {
+      setState(() => _result = 'Error: ${e.toString()}');
+    }
+  }
+
+  void _performInverse() {
+    final matrix = _getMatrixA();
+    if (matrix.length != matrix[0].length) {
+      setState(() => _result = 'Error: Matrix must be square');
+      return;
+    }
+
+    try {
+      final inv = _calculateInverse(matrix);
+      setState(() {
+        _result = 'Result:\n${_matrixToString(inv)}';
+        _addToHistory('Inverse', _result);
+      });
+    } catch (e) {
+      setState(() => _result = 'Error: ${e.toString()}');
+    }
+  }
+
+  Widget _buildMatrixInput(
+      String title, List<List<TextEditingController>> controllers) {
     return Card(
       elevation: 3,
       margin: const EdgeInsets.all(8),
@@ -185,7 +309,8 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(title,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Table(
               border: TableBorder.symmetric(
@@ -193,34 +318,34 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
                 outside: const BorderSide(color: Colors.grey),
               ),
               columnWidths: Map.fromIterables(
-                Iterable<int>.generate(controllers[0].length),
-                Iterable<FixedColumnWidth>.generate(controllers[0].length, 
-                  (index) => const FixedColumnWidth(56))
-              ),
-              children: controllers.map((row) =>
-                  TableRow(
-                    children: row.map((cell) =>
-                        Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: TextField(
-                            controller: cell,
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 14),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[100],
-                            ),
-                          ),
-                        )
-                    ).toList(),
-                  )
-              ).toList(),
+                  Iterable<int>.generate(controllers[0].length),
+                  Iterable<FixedColumnWidth>.generate(controllers[0].length,
+                      (index) => const FixedColumnWidth(56))),
+              children: controllers
+                  .map((row) => TableRow(
+                      children: row
+                          .map((cell) => Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: TextField(
+                                  controller: cell,
+                                  keyboardType:
+                                      TextInputType.numberWithOptions(decimal: true),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 14),
+                                  decoration: InputDecoration(
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(vertical: 8),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.grey[100],
+                                  ),
+                                ),
+                              ))
+                          .toList()))
+                  .toList(),
             ),
           ],
         ),
@@ -229,69 +354,72 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
   }
 
   Future<void> _showMatrixSizeDialog(bool isMatrixA) async {
-    final rowsController = TextEditingController(text: isMatrixA ? _rowsA.toString() : _rowsB.toString());
-    final colsController = TextEditingController(text: isMatrixA ? _colsA.toString() : _colsB.toString());
+    final rowsController = TextEditingController(
+        text: isMatrixA ? _rowsA.toString() : _rowsB.toString());
+    final colsController = TextEditingController(
+        text: isMatrixA ? _colsA.toString() : _colsB.toString());
 
     await showDialog(
       context: context,
-      builder: (context) =>
-          AlertDialog(
-            title: Text('${isMatrixA ? 'Matrix A' : 'Matrix B'} Size'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
+      builder: (context) => AlertDialog(
+        title: Text('${isMatrixA ? 'Matrix A' : 'Matrix B'} Size'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: rowsController,
-                        decoration: const InputDecoration(labelText: 'Rows'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextField(
-                        controller: colsController,
-                        decoration: const InputDecoration(labelText: 'Columns'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
+                Expanded(
+                  child: TextField(
+                    controller: rowsController,
+                    decoration: const InputDecoration(labelText: 'Rows'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: colsController,
+                    decoration: const InputDecoration(labelText: 'Columns'),
+                    keyboardType: TextInputType.number,
+                  ),
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final rows = int.tryParse(rowsController.text) ??
-                      (isMatrixA ? _rowsA : _rowsB);
-                  final cols = int.tryParse(colsController.text) ??
-                      (isMatrixA ? _colsA : _colsB);
-
-                  if (rows > 0 && cols > 0) {
-                    setState(() {
-                      if (isMatrixA) {
-                        _rowsA = rows;
-                        _colsA = cols;
-                      } else {
-                        _rowsB = rows;
-                        _colsB = cols;
-                      }
-                      _initializeControllers();
-                      _showMatrixB = _currentOperation == 'Addition' || _currentOperation == 'Multiplication';
-                    });
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('Apply'),
-              ),
-            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () {
+              final rows = int.tryParse(rowsController.text) ??
+                  (isMatrixA ? _rowsA : _rowsB);
+              final cols = int.tryParse(colsController.text) ??
+                  (isMatrixA ? _colsA : _colsB);
+
+              if (rows > 0 && cols > 0) {
+                setState(() {
+                  if (isMatrixA) {
+                    _rowsA = rows;
+                    _colsA = cols;
+                  } else {
+                    _rowsB = rows;
+                    _colsB = cols;
+                  }
+                  _initializeControllers();
+                  _showMatrixB = _currentOperation == 'Addition' ||
+                      _currentOperation == 'Subtraction' ||
+                      _currentOperation == 'Multiplication';
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -326,7 +454,8 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
                         label: const Text('Resize'),
                         onPressed: () => _showMatrixSizeDialog(true),
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                         ),
                       ),
                     ],
@@ -344,7 +473,8 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
                           label: const Text('Resize'),
                           onPressed: () => _showMatrixSizeDialog(false),
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                           ),
                         ),
                       ],
@@ -353,7 +483,6 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
                 ],
               ],
             ),
-            
             const SizedBox(height: 24),
             Wrap(
               alignment: WrapAlignment.center,
@@ -361,12 +490,14 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
               runSpacing: 12,
               children: [
                 _buildOperationButton('Addition', Icons.add),
+                _buildOperationButton('Subtraction', Icons.remove),
                 _buildOperationButton('Multiplication', Icons.close),
                 _buildOperationButton('Determinant', Icons.functions),
                 _buildOperationButton('Transpose', Icons.swap_horiz),
+                _buildOperationButton('Adjugate', Icons.grid_on),
+                _buildOperationButton('Inverse', Icons.exposure_neg_1),
               ],
             ),
-            
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -392,7 +523,6 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
                 ),
               ],
             ),
-            
             if (_result.isNotEmpty) ...[
               const SizedBox(height: 24),
               Card(
@@ -402,34 +532,34 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Result:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text('Result:',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Text(
                         _result.split('\n').sublist(1).join('\n'),
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'RobotoMono',
-                          color: Colors.blue
-                        ),
+                            fontSize: 16,
+                            fontFamily: 'RobotoMono',
+                            color: Colors.blue),
                       ),
                     ],
                   ),
                 ),
               ),
             ],
-            
             if (_history.isNotEmpty) ...[
               const SizedBox(height: 24),
-              const Text('History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('History',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              ..._history.reversed.map((entry) =>
-                  Card(
+              ..._history.reversed.map((entry) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Text(
                         entry,
-                        style: const TextStyle(fontSize: 14, fontFamily: 'RobotoMono'),
+                        style: const TextStyle(
+                            fontSize: 14, fontFamily: 'RobotoMono'),
                       ),
                     ),
                   )),
@@ -446,7 +576,7 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
       label: Text(operation),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        backgroundColor: _currentOperation == operation 
+        backgroundColor: _currentOperation == operation
             ? Theme.of(context).primaryColor.withOpacity(0.9)
             : Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
@@ -454,22 +584,25 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
       onPressed: () {
         setState(() {
           _currentOperation = operation;
-          _showMatrixB = operation == 'Addition' || operation == 'Multiplication';
+          _showMatrixB = operation == 'Addition' ||
+              operation == 'Subtraction' ||
+              operation == 'Multiplication';
         });
-        
+
         if (operation == 'Addition') {
           _performAddition();
+        } else if (operation == 'Subtraction') {
+          _performSubtraction();
         } else if (operation == 'Multiplication') {
           _performMultiplication();
         } else if (operation == 'Determinant') {
           _performDeterminant();
         } else if (operation == 'Transpose') {
-          final transposed = List.generate(_colsA, (i) =>
-              List.generate(_rowsA, (j) => _getMatrixA()[j][i]));
-          setState(() {
-            _result = 'Result:\n${_matrixToString(transposed)}';
-            _addToHistory('Transpose', _result);
-          });
+          _performTranspose();
+        } else if (operation == 'Adjugate') {
+          _performAdjugate();
+        } else if (operation == 'Inverse') {
+          _performInverse();
         }
       },
     );
