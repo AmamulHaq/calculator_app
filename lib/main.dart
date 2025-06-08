@@ -40,8 +40,7 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (context) => const ScientificCalculator()),
+                  MaterialPageRoute(builder: (context) => const ScientificCalculator()),
                 );
               },
               child: const Text('Scientific Calculator'),
@@ -69,30 +68,6 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class ScientificCalculator extends StatelessWidget {
-  const ScientificCalculator({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scientific Calculator')),
-      body: const Center(child: Text('Scientific Calculator Screen')),
-    );
-  }
-}
-
-class MatrixCalculator extends StatelessWidget {
-  const MatrixCalculator({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Matrix Calculator')),
-      body: const Center(child: Text('Matrix Calculator Screen')),
     );
   }
 }
