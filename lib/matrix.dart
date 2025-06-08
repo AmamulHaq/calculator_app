@@ -329,7 +329,7 @@ class _MatrixCalculatorState extends State<MatrixCalculator> {
                                 child: TextField(
                                   controller: cell,
                                   keyboardType:
-                                      TextInputType.numberWithOptions(decimal: true),
+                                      const TextInputType.numberWithOptions(decimal: true),
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(fontSize: 14),
                                   decoration: InputDecoration(
