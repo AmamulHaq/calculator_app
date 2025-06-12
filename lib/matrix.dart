@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 
 class MatrixCalculator extends StatefulWidget {
   const MatrixCalculator({super.key});

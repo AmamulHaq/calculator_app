@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'matrix.dart';
 import 'truthtable.dart';
 import 'dart:math';
+import 'calculusI.dart';
 
 void main() {
   runApp(const MainApp());
@@ -16,17 +17,19 @@ class MainApp extends StatefulWidget {
 
 class _MainAppState extends State<MainApp> {
   int _currentScreenIndex = 0;
-  
+
   final List<Widget> _screens = [
     const ScientificCalculator(),
     const MatrixCalculator(),
     const TruthTableScreen(),
+    const CalculusApp(),
   ];
 
   final List<String> _titles = [
     'Scientific Calculator',
     'Matrix Calculator',
     'Truth Tables',
+    'Calculus'
   ];
 
   @override
@@ -78,6 +81,14 @@ class _MainAppState extends State<MainApp> {
                   Navigator.pop(context);
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.graphic_eq),
+                title: const Text('Calculus'),
+                onTap: () {
+                  setState(() => _currentScreenIndex = 3);
+                  Navigator.pop(context);
+                },
+              ),
             ],
           ),
         ),
@@ -103,11 +114,13 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
 
   String _formatResult(double result) {
     if (result.isNaN || result.isInfinite) return 'Error';
-    if (result.truncateToDouble() == result) return result.truncate().toString();
-    
-    final formatted = result.toStringAsFixed(6)
-      .replaceAll(RegExp(r'0*$'), '')
-      .replaceAll(RegExp(r'\.$'), '');
+    if (result.truncateToDouble() == result)
+      return result.truncate().toString();
+
+    final formatted = result
+        .toStringAsFixed(6)
+        .replaceAll(RegExp(r'0*$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
     return formatted.isEmpty ? '0' : formatted;
   }
 
@@ -118,24 +131,22 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
         _operation = '';
         _firstNumber = 0;
         _waitingForSecondNumber = false;
-      } 
-      else if (buttonText == '%' || buttonText == '!') {
+      } else if (buttonText == '%' || buttonText == '!') {
         try {
           final value = double.parse(_display);
           double result = buttonText == '%' ? value / 100 : _factorial(value);
           final formatted = _formatResult(result);
-          
+
           if (_history.length >= 4) _history.removeAt(0);
           _history.add('$value$buttonText = $formatted');
-          
+
           _display = formatted;
         } catch (e) {
           _display = 'Error';
         }
-      } 
-      else if (buttonText == '=') {
+      } else if (buttonText == '=') {
         if (_operation.isEmpty) return;
-        
+
         try {
           final secondNumber = double.parse(_display);
           double result = 0;
@@ -144,61 +155,78 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
           switch (_operation) {
             case '+':
               result = _firstNumber + secondNumber;
-              expression = '${_formatResult(_firstNumber)} + ${_formatResult(secondNumber)}';
+              expression =
+                  '${_formatResult(_firstNumber)} + ${_formatResult(secondNumber)}';
               break;
             case '-':
               result = _firstNumber - secondNumber;
-              expression = '${_formatResult(_firstNumber)} - ${_formatResult(secondNumber)}';
+              expression =
+                  '${_formatResult(_firstNumber)} - ${_formatResult(secondNumber)}';
               break;
             case '×':
               result = _firstNumber * secondNumber;
-              expression = '${_formatResult(_firstNumber)} × ${_formatResult(secondNumber)}';
+              expression =
+                  '${_formatResult(_firstNumber)} × ${_formatResult(secondNumber)}';
               break;
             case '÷':
               if (secondNumber == 0) throw Exception('Division by zero');
               result = _firstNumber / secondNumber;
-              expression = '${_formatResult(_firstNumber)} ÷ ${_formatResult(secondNumber)}';
+              expression =
+                  '${_formatResult(_firstNumber)} ÷ ${_formatResult(secondNumber)}';
               break;
             case '^':
               result = pow(_firstNumber, secondNumber).toDouble();
-              expression = '${_formatResult(_firstNumber)} ^ ${_formatResult(secondNumber)}';
+              expression =
+                  '${_formatResult(_firstNumber)} ^ ${_formatResult(secondNumber)}';
               break;
             case '√':
               if (_firstNumber == 0) throw Exception('Root undefined');
               result = pow(secondNumber, 1 / _firstNumber).toDouble();
-              expression = '${_formatResult(_firstNumber)}√${_formatResult(secondNumber)}';
+              expression =
+                  '${_formatResult(_firstNumber)}√${_formatResult(secondNumber)}';
               break;
             case 'P':
               result = _permutation(_firstNumber, secondNumber);
-              expression = 'P(${_firstNumber.truncate()}, ${secondNumber.truncate()})';
+              expression =
+                  'P(${_firstNumber.truncate()}, ${secondNumber.truncate()})';
               break;
             case 'C':
               result = _combination(_firstNumber, secondNumber);
-              expression = 'C(${_firstNumber.truncate()}, ${secondNumber.truncate()})';
+              expression =
+                  'C(${_firstNumber.truncate()}, ${secondNumber.truncate()})';
               break;
           }
 
           final formatted = _formatResult(result);
           if (_history.length >= 4) _history.removeAt(0);
           _history.insert(0, '$expression = $formatted');
-          
+
           _display = formatted;
           _operation = '';
           _waitingForSecondNumber = false;
         } catch (e) {
           _display = 'Error';
         }
-      } 
-      else if (['sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'e^x', 'ln', 'log', '√x'].contains(buttonText)) {
+      } else if ([
+        'sin',
+        'cos',
+        'tan',
+        'cosec',
+        'sec',
+        'cot',
+        'e^x',
+        'ln',
+        'log',
+        '√x'
+      ].contains(buttonText)) {
         _handleUnaryOperation(buttonText);
-      }
-      else if (['+', '-', '×', '÷', '^', '√', 'P', 'C'].contains(buttonText)) {
+      } else if (['+', '-', '×', '÷', '^', '√', 'P', 'C']
+          .contains(buttonText)) {
         _firstNumber = double.parse(_display);
         _operation = buttonText;
         _waitingForSecondNumber = true;
         _display = '0';
-      } 
-      else {
+      } else {
         if (_display == '0' || _waitingForSecondNumber || _display == 'Error') {
           _display = buttonText;
           _waitingForSecondNumber = false;
@@ -213,7 +241,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
 
   void _handleUnaryOperation(String operation) {
     final value = double.tryParse(_display) ?? 0;
-    
+
     try {
       Map<String, dynamic> calculation;
       switch (operation) {
@@ -259,7 +287,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
       final formattedResult = _formatResult(calculation['result']!);
       if (_history.length >= 4) _history.removeAt(0);
       _history.add('${calculation['displayText']} = $formattedResult');
-      
+
       _display = formattedResult;
       _waitingForSecondNumber = true;
     } catch (e) {
@@ -267,11 +295,12 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
     }
   }
 
-  Map<String, dynamic> _handleTrigonometricOperation(double degrees, String operation) {
+  Map<String, dynamic> _handleTrigonometricOperation(
+      double degrees, String operation) {
     final radians = degrees * pi / 180;
     double result;
     String displayText;
-    
+
     switch (operation) {
       case 'sin':
         result = sin(radians);
@@ -337,18 +366,22 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
     return _factorial(n) / (_factorial(r) * _factorial(n - r));
   }
 
-  Widget _buildButton(String text, {Color? color, double? fontSize, int flex = 1}) {
+  Widget _buildButton(String text,
+      {Color? color, double? fontSize, int flex = 1}) {
     return Expanded(
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final minDimension = min(constraints.maxWidth, constraints.maxHeight);
+            final minDimension =
+                min(constraints.maxWidth, constraints.maxHeight);
             return ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: color ?? Theme.of(context).colorScheme.surface,
-                foregroundColor: color != null ? Colors.white : Theme.of(context).colorScheme.onSurface,
+                foregroundColor: color != null
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(minDimension * 0.2),
                 ),
@@ -400,7 +433,6 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                 },
               ),
             ),
-            
             Container(
               height: constraints.maxHeight * 0.15,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -417,7 +449,6 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                 ),
               ),
             ),
-            
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
