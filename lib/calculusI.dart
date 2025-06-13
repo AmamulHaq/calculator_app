@@ -11,7 +11,12 @@ class CalculusApp extends StatelessWidget {
     return MaterialApp(
       title: 'Calculus Calculator',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.indigo,
+        colorScheme: ColorScheme.fromSwatch(
+          primarySwatch: Colors.indigo,
+          accentColor: Colors.amber,
+          backgroundColor: Colors.grey[50],
+        ),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const CalculatorScreen(),
@@ -108,18 +113,23 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calculus Calculator'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         actions: [
           IconButton(
             icon: const Icon(Icons.help),
             onPressed: () => _onButtonPressed('Help'),
+            color: Theme.of(context).colorScheme.onPrimary,
           ),
         ],
       ),
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: Column(
         children: [
           // Variable selection
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            color: Theme.of(context).colorScheme.surface,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: ['x', 'y', 'z'].map((varName) {
@@ -127,7 +137,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   label: Text(varName),
                   selected: _selectedVariable == varName,
                   onSelected: (_) => _selectVariable(varName),
-                  selectedColor: Colors.blue[200],
+                  selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                  labelStyle: TextStyle(
+                    color: _selectedVariable == varName 
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onSurface,
+                  ),
                 );
               }).toList(),
             ),
@@ -135,28 +150,41 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
           // Display area
           Expanded(
+            flex: 2,
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      _expression.isEmpty ? 'Enter expression' : _expression,
-                      style: const TextStyle(fontSize: 24),
-                      textAlign: TextAlign.right,
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Theme.of(context).dividerColor,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        _expression.isEmpty ? 'Enter expression' : _expression,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 8),
                     Text(
                       _result,
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: Colors.blue[700],
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.right,
                     ),
-                    if (_showHelp) _buildHelpPanel(),
+                    if (_showHelp) _buildHelpPanel(context),
                   ],
                 ),
               ),
@@ -165,27 +193,41 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
           // Calculator buttons
           Expanded(
-            flex: 2,
-            child: Column(
-              children: [
-                ...buttonRows.map((row) => Expanded(
-                      child: Row(
-                        children: row.map((btn) => _buildButton(btn)).toList(),
-                      ),
-                    )),
-                Expanded(
-                  child: Row(
-                    children: [
-                      _buildButton('C'),
-                      _buildButton('x'),
-                      _buildButton('y'),
-                      _buildButton('z'),
-                      _buildButton('Diff'),
-                      _buildButton('Int'),
-                    ],
+            flex: 3,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                children: [
+                  ...buttonRows.map((row) => Expanded(
+                    child: Row(
+                      children: row.map((btn) => _buildButton(context, btn)).toList(),
+                    ),
+                  )),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        _buildButton(context, 'C'),
+                        _buildButton(context, 'x'),
+                        _buildButton(context, 'y'),
+                        _buildButton(context, 'z'),
+                        _buildButton(context, 'Diff'),
+                        _buildButton(context, 'Int'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -193,51 +235,84 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  Widget _buildButton(String text) {
+  Widget _buildButton(BuildContext context, String text) {
     final isSpecial = ['C', '⌫', '=', 'Diff', 'Int'].contains(text);
     final isVariable = ['x', 'y', 'z'].contains(text);
     final isSelected = isVariable && text == _selectedVariable;
+    final isOperator = ['+', '-', '*', '/', '^'].contains(text);
+
+    Color? buttonColor;
+    if (isSelected) {
+      buttonColor = Theme.of(context).colorScheme.primaryContainer;
+    } else if (isSpecial) {
+      buttonColor = Theme.of(context).colorScheme.primary;
+    } else if (isOperator) {
+      buttonColor = Theme.of(context).colorScheme.secondary;
+    } else {
+      buttonColor = Theme.of(context).colorScheme.surface;
+    }
 
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.all(16.0),
-            backgroundColor: isSelected
-                ? Colors.orange
-                : isSpecial
-                    ? Colors.blue[700]
-                    : Colors.blue[400],
-            foregroundColor: Colors.white,
+            padding: const EdgeInsets.all(12.0),
+            backgroundColor: buttonColor,
+            foregroundColor: isSelected 
+                ? Theme.of(context).colorScheme.onPrimaryContainer
+                : isSpecial || isOperator
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onSurface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: BorderRadius.circular(12.0),
             ),
+            elevation: 0,
+            shadowColor: Colors.transparent,
           ),
           onPressed: () => _onButtonPressed(text),
           child: Text(
             text,
-            style: const TextStyle(fontSize: 20),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHelpPanel() {
-    return const Padding(
-      padding: EdgeInsets.only(top: 20.0),
+  Widget _buildHelpPanel(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Help Guide:', style: TextStyle(fontWeight: FontWeight.bold)),
-          Text('• Use buttons to build expressions'),
-          Text('• Select variable (x/y/z) for calculus operations'),
-          Text('• Diff: Differentiate expression'),
-          Text('• Int: Integrate expression'),
-          Text('• = : Simplify expression'),
-          Text('• C : Clear expression'),
-          Text('• ⌫ : Backspace'),
+          Text(
+            'Help Guide:',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '• Use buttons to build expressions\n'
+            '• Select variable (x/y/z) for calculus operations\n'
+            '• Diff: Differentiate expression\n'
+            '• Int: Integrate expression\n'
+            '• = : Simplify expression\n'
+            '• C : Clear expression\n'
+            '• ⌫ : Backspace',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
