@@ -105,246 +105,284 @@ class ScientificCalculator extends StatefulWidget {
   State<ScientificCalculator> createState() => _ScientificCalculatorState();
 }
 
+enum TokenType { number, operator, function, constant, parenthesis }
+
+class Token {
+  final TokenType type;
+  final String value;
+  final int? precedence;
+  final bool isLeftAssociative;
+
+  Token(this.type, this.value, {this.precedence, this.isLeftAssociative = true});
+}
+
 class _ScientificCalculatorState extends State<ScientificCalculator> {
-  String _display = '0';
-  String _operation = '';
-  double _firstNumber = 0;
-  bool _waitingForSecondNumber = false;
-  List<String> _history = [];
+  String _expression = '';
+  String _result = '';
+  final List<String> _history = [];
 
-  String _formatResult(double result) {
-    if (result.isNaN || result.isInfinite) return 'Error';
-    if (result.truncateToDouble() == result)
-      return result.truncate().toString();
+  final Map<String, int> _precedence = {
+    '+': 1,
+    '-': 1,
+    '×': 2,
+    '÷': 2,
+    '^': 3,
+    'u-': 4,
+  };
 
-    final formatted = result
-        .toStringAsFixed(6)
-        .replaceAll(RegExp(r'0*$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
-    return formatted.isEmpty ? '0' : formatted;
-  }
-
-  void _onButtonPressed(String buttonText) {
+  void _onButtonPressed(String value) {
     setState(() {
-      if (buttonText == 'AC') {
-        _display = '0';
-        _operation = '';
-        _firstNumber = 0;
-        _waitingForSecondNumber = false;
-      } else if (buttonText == '%' || buttonText == '!') {
-        try {
-          final value = double.parse(_display);
-          double result = buttonText == '%' ? value / 100 : _factorial(value);
-          final formatted = _formatResult(result);
-
-          if (_history.length >= 4) _history.removeAt(0);
-          _history.add('$value$buttonText = $formatted');
-
-          _display = formatted;
-        } catch (e) {
-          _display = 'Error';
+      if (value == 'AC') {
+        _expression = '';
+        _result = '';
+        _history.clear();
+      } else if (value == 'C') {
+        _expression = '';
+        _result = '';
+      } else if (value == '⌫') {
+        if (_expression.isNotEmpty) {
+          _expression = _expression.substring(0, _expression.length - 1);
         }
-      } else if (buttonText == '=') {
-        if (_operation.isEmpty) return;
-
-        try {
-          final secondNumber = double.parse(_display);
-          double result = 0;
-          String expression = '';
-
-          switch (_operation) {
-            case '+':
-              result = _firstNumber + secondNumber;
-              expression =
-                  '${_formatResult(_firstNumber)} + ${_formatResult(secondNumber)}';
-              break;
-            case '-':
-              result = _firstNumber - secondNumber;
-              expression =
-                  '${_formatResult(_firstNumber)} - ${_formatResult(secondNumber)}';
-              break;
-            case '×':
-              result = _firstNumber * secondNumber;
-              expression =
-                  '${_formatResult(_firstNumber)} × ${_formatResult(secondNumber)}';
-              break;
-            case '÷':
-              if (secondNumber == 0) throw Exception('Division by zero');
-              result = _firstNumber / secondNumber;
-              expression =
-                  '${_formatResult(_firstNumber)} ÷ ${_formatResult(secondNumber)}';
-              break;
-            case '^':
-              result = pow(_firstNumber, secondNumber).toDouble();
-              expression =
-                  '${_formatResult(_firstNumber)} ^ ${_formatResult(secondNumber)}';
-              break;
-            case '√':
-              if (_firstNumber == 0) throw Exception('Root undefined');
-              result = pow(secondNumber, 1 / _firstNumber).toDouble();
-              expression =
-                  '${_formatResult(_firstNumber)}√${_formatResult(secondNumber)}';
-              break;
-            case 'P':
-              result = _permutation(_firstNumber, secondNumber);
-              expression =
-                  'P(${_firstNumber.truncate()}, ${secondNumber.truncate()})';
-              break;
-            case 'C':
-              result = _combination(_firstNumber, secondNumber);
-              expression =
-                  'C(${_firstNumber.truncate()}, ${secondNumber.truncate()})';
-              break;
-          }
-
-          final formatted = _formatResult(result);
-          if (_history.length >= 4) _history.removeAt(0);
-          _history.insert(0, '$expression = $formatted');
-
-          _display = formatted;
-          _operation = '';
-          _waitingForSecondNumber = false;
-        } catch (e) {
-          _display = 'Error';
-        }
-      } else if ([
-        'sin',
-        'cos',
-        'tan',
-        'cosec',
-        'sec',
-        'cot',
-        'e^x',
-        'ln',
-        'log',
-        '√x'
-      ].contains(buttonText)) {
-        _handleUnaryOperation(buttonText);
-      } else if (['+', '-', '×', '÷', '^', '√', 'P', 'C']
-          .contains(buttonText)) {
-        _firstNumber = double.parse(_display);
-        _operation = buttonText;
-        _waitingForSecondNumber = true;
-        _display = '0';
+      } else if (value == '=') {
+        _evaluateExpression();
       } else {
-        if (_display == '0' || _waitingForSecondNumber || _display == 'Error') {
-          _display = buttonText;
-          _waitingForSecondNumber = false;
-        } else if (buttonText == '.' && !_display.contains('.')) {
-          _display += buttonText;
-        } else if (buttonText != '.') {
-          _display += buttonText;
+        // Handle special functions that need parentheses
+        if (['sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'ln', 'log', '√x', 'e^x', 'P', 'C'].contains(value)) {
+          _expression += '$value(';
+        } else if (value == '!') {
+          _expression += '!';
+        } else {
+          _expression += value;
         }
       }
     });
   }
 
-  void _handleUnaryOperation(String operation) {
-    final value = double.tryParse(_display) ?? 0;
+  List<Token> _tokenize(String expression) {
+    List<Token> tokens = [];
+    int i = 0;
+    while (i < expression.length) {
+      final char = expression[i];
 
-    try {
-      Map<String, dynamic> calculation;
-      switch (operation) {
-        case 'sin':
-        case 'cos':
-        case 'tan':
-        case 'cosec':
-        case 'sec':
-        case 'cot':
-          calculation = _handleTrigonometricOperation(value, operation);
-          break;
-        case 'e^x':
-          calculation = {
-            'result': exp(value),
-            'displayText': 'e^$value',
-          };
-          break;
-        case 'ln':
-          if (value <= 0) throw Exception('ln undefined for non-positive');
-          calculation = {
-            'result': log(value),
-            'displayText': 'ln($value)',
-          };
-          break;
-        case 'log':
-          if (value <= 0) throw Exception('log undefined for non-positive');
-          calculation = {
-            'result': log(value) / ln10,
-            'displayText': 'log($value)',
-          };
-          break;
-        case '√x':
-          if (value < 0) throw Exception('Square root of negative');
-          calculation = {
-            'result': sqrt(value),
-            'displayText': '√($value)',
-          };
-          break;
-        default:
-          throw Exception('Unsupported unary operation');
+      if (char.trim().isEmpty) {
+        i++;
+        continue;
       }
 
-      final formattedResult = _formatResult(calculation['result']!);
-      if (_history.length >= 4) _history.removeAt(0);
-      _history.add('${calculation['displayText']} = $formattedResult');
+      // Numbers
+      if (RegExp(r'\d|\.\d').hasMatch(char)) {
+        String numStr = '';
+        while (i < expression.length &&
+            RegExp(r'[\d.]').hasMatch(expression[i])) {
+          numStr += expression[i++];
+        }
+        tokens.add(Token(TokenType.number, numStr));
+        continue;
+      }
 
-      _display = formattedResult;
-      _waitingForSecondNumber = true;
-    } catch (e) {
-      _display = 'Error';
+      // Constants
+      if (char == 'π' || char == 'e') {
+        tokens.add(Token(TokenType.constant, char));
+        i++;
+        continue;
+      }
+
+      // Unary minus
+      if (char == '-' &&
+          (tokens.isEmpty ||
+              tokens.last.type == TokenType.operator ||
+              tokens.last.value == '(')) {
+        tokens.add(Token(TokenType.operator, 'u-', precedence: _precedence['u-']));
+        i++;
+        continue;
+      }
+
+      // Functions
+      final funcs = [
+        'sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'log', 'ln', '√x', 'e^x', 'P', 'C', '!'
+      ];
+      bool matched = false;
+      for (var func in funcs) {
+        if (expression.startsWith(func, i)) {
+          // Handle function name mapping
+          String tokenValue = func;
+          if (func == '√x') tokenValue = '√';
+          if (func == 'e^x') tokenValue = 'e^';
+          
+          tokens.add(Token(TokenType.function, tokenValue));
+          i += func.length;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+
+      // Operators
+      if (_precedence.containsKey(char)) {
+        tokens.add(Token(TokenType.operator, char, precedence: _precedence[char] ?? 0));
+        i++;
+        continue;
+      }
+
+      // Parenthesis and comma
+      if (['(', ')', ','].contains(char)) {
+        tokens.add(Token(TokenType.parenthesis, char));
+        i++;
+        continue;
+      }
+
+      i++; // skip unknown characters
     }
+    return tokens;
   }
 
-  Map<String, dynamic> _handleTrigonometricOperation(
-      double degrees, String operation) {
-    final radians = degrees * pi / 180;
-    double result;
-    String displayText;
+  List<Token> _shuntingYard(List<Token> tokens) {
+    List<Token> output = [];
+    List<Token> stack = [];
 
-    switch (operation) {
-      case 'sin':
-        result = sin(radians);
-        displayText = 'sin(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'cos':
-        result = cos(radians);
-        displayText = 'cos(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'tan':
-        result = tan(radians);
-        displayText = 'tan(${degrees.toStringAsFixed(2)}°)';
-        if (result.abs() > 1e10) {
-          throw Exception('Undefined');
-        }
-        break;
-      case 'cosec':
-        if (sin(radians).abs() < 1e-10) throw Exception('Undefined');
-        result = 1 / sin(radians);
-        displayText = 'cosec(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'sec':
-        if (cos(radians).abs() < 1e-10) throw Exception('Undefined');
-        result = 1 / cos(radians);
-        displayText = 'sec(${degrees.toStringAsFixed(2)}°)';
-        break;
-      case 'cot':
-        if (tan(radians).abs() < 1e-10) throw Exception('Undefined');
-        result = 1 / tan(radians);
-        displayText = 'cot(${degrees.toStringAsFixed(2)}°)';
-        break;
-      default:
-        throw Exception('Invalid operation');
+    for (var token in tokens) {
+      switch (token.type) {
+        case TokenType.number:
+        case TokenType.constant:
+          output.add(token);
+          break;
+        case TokenType.function:
+          stack.add(token);
+          break;
+        case TokenType.operator:
+          while (stack.isNotEmpty &&
+              stack.last.type == TokenType.operator &&
+              (token.precedence! < stack.last.precedence! ||
+                  (token.precedence == stack.last.precedence &&
+                      token.isLeftAssociative))) {
+            output.add(stack.removeLast());
+          }
+          stack.add(token);
+          break;
+        case TokenType.parenthesis:
+          if (token.value == '(') {
+            stack.add(token);
+          } else if (token.value == ')') {
+            while (stack.isNotEmpty && stack.last.value != '(') {
+              output.add(stack.removeLast());
+            }
+            if (stack.isEmpty) throw Exception('Mismatched parentheses');
+            stack.removeLast(); // Remove '('
+            if (stack.isNotEmpty && stack.last.type == TokenType.function) {
+              output.add(stack.removeLast());
+            }
+          } else if (token.value == ',') {
+            while (stack.isNotEmpty && stack.last.value != '(') {
+              output.add(stack.removeLast());
+            }
+            if (stack.isEmpty) throw Exception('Comma outside function');
+          }
+          break;
+      }
     }
 
-    return {
-      'result': result,
-      'displayText': displayText,
-    };
+    while (stack.isNotEmpty) {
+      if (stack.last.value == '(') throw Exception('Mismatched parentheses');
+      output.add(stack.removeLast());
+    }
+
+    return output;
+  }
+
+  double _evaluateRPN(List<Token> tokens) {
+    final stack = <double>[];
+
+    for (var token in tokens) {
+      if (token.type == TokenType.number) {
+        stack.add(double.parse(token.value));
+      } else if (token.type == TokenType.constant) {
+        stack.add(token.value == 'π' ? pi : e);
+      } else if (token.type == TokenType.operator) {
+        if (token.value == 'u-') {
+          var x = stack.removeLast();
+          stack.add(-x);
+        } else {
+          var b = stack.removeLast();
+          var a = stack.removeLast();
+          switch (token.value) {
+            case '+':
+              stack.add(a + b);
+              break;
+            case '-':
+              stack.add(a - b);
+              break;
+            case '×':
+              stack.add(a * b);
+              break;
+            case '÷':
+              stack.add(a / b);
+              break;
+            case '^':
+              stack.add(pow(a, b).toDouble());
+              break;
+          }
+        }
+      } else if (token.type == TokenType.function) {
+        double x;
+        double y = 0;
+        
+        // For functions that take two arguments (P and C)
+        if (token.value == 'P' || token.value == 'C') {
+          x = stack.removeLast();
+          y = stack.removeLast();
+        } else {
+          x = stack.removeLast();
+        }
+        
+        switch (token.value) {
+          case 'sin':
+            stack.add(sin(x * pi / 180));
+            break;
+          case 'cos':
+            stack.add(cos(x * pi / 180));
+            break;
+          case 'tan':
+            stack.add(tan(x * pi / 180));
+            break;
+          case 'cosec':
+            stack.add(1 / sin(x * pi / 180));
+            break;
+          case 'sec':
+            stack.add(1 / cos(x * pi / 180));
+            break;
+          case 'cot':
+            stack.add(1 / tan(x * pi / 180));
+            break;
+          case 'log':
+            stack.add(log(x) / ln10);
+            break;
+          case 'ln':
+            stack.add(log(x));
+            break;
+          case '√':
+            stack.add(sqrt(x));
+            break;
+          case 'e^':
+            stack.add(exp(x));
+            break;
+          case '!':
+            stack.add(_factorial(x));
+            break;
+          case 'P':
+            stack.add(_permutation(y, x));
+            break;
+          case 'C':
+            stack.add(_combination(y, x));
+            break;
+        }
+      }
+    }
+
+    return stack.isEmpty ? 0 : stack.first;
   }
 
   double _factorial(double n) {
-    if (n < 0 || n > 20) return double.nan;
-    if (n < 2) return 1;
+    if (n < 0 || n > 20 || n != n.truncate()) return double.nan;
     double result = 1;
     for (int i = 2; i <= n; i++) {
       result *= i;
@@ -366,33 +404,65 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
     return _factorial(n) / (_factorial(r) * _factorial(n - r));
   }
 
-  Widget _buildButton(String text,
-      {Color? color, double? fontSize, int flex = 1}) {
+  void _evaluateExpression() {
+    try {
+      if (_expression.isEmpty) return;
+      
+      final tokens = _tokenize(_expression);
+      final rpn = _shuntingYard(tokens);
+      final result = _evaluateRPN(rpn);
+      final formatted = _formatResult(result);
+
+      if (_history.length >= 4) _history.removeAt(0);
+      _history.add('$_expression = $formatted');
+
+      setState(() {
+        _result = formatted;
+      });
+    } catch (e) {
+      setState(() {
+        _result = 'Error: ${e.toString()}';
+      });
+    }
+  }
+
+  String _formatResult(double result) {
+    if (result.isNaN || result.isInfinite) return 'Error';
+    if (result.truncateToDouble() == result) return result.truncate().toString();
+
+    final formatted = result
+        .toStringAsFixed(6)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+    return formatted.isEmpty ? '0' : formatted;
+  }
+
+  Widget _buildButton(String text, {Color? color, double? fontSize, int flex = 1}) {
     return Expanded(
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final minDimension =
-                min(constraints.maxWidth, constraints.maxHeight);
+            final minDimension = min(constraints.maxWidth, constraints.maxHeight);
             return ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: color ?? Theme.of(context).colorScheme.surface,
-                foregroundColor: color != null
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.onSurface,
+                foregroundColor: color != null ? Colors.white : Theme.of(context).colorScheme.onSurface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(minDimension * 0.2),
                 ),
                 padding: EdgeInsets.all(minDimension * 0.15),
               ),
               onPressed: () => _onButtonPressed(text),
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: fontSize ?? minDimension * 0.4,
-                  fontWeight: FontWeight.bold,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: fontSize ?? minDimension * 0.4,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             );
@@ -408,12 +478,15 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
       builder: (context, constraints) {
         return Column(
           children: [
+            // Fixed history container with proper parenthesis
             Container(
               height: constraints.maxHeight * 0.2,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               alignment: Alignment.topRight,
               decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade300),
+                ),
               ),
               child: ListView.builder(
                 reverse: false,
@@ -434,16 +507,32 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
               ),
             ),
             Container(
-              height: constraints.maxHeight * 0.15,
+              height: constraints.maxHeight * 0.1,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               alignment: Alignment.bottomRight,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 reverse: true,
                 child: Text(
-                  _display,
+                  _expression,
                   style: const TextStyle(
-                    fontSize: 48,
+                    fontSize: 24,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              height: constraints.maxHeight * 0.1,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              alignment: Alignment.bottomRight,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Text(
+                  _result,
+                  style: const TextStyle(
+                    fontSize: 36,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -479,7 +568,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                         children: [
                           _buildButton('ln', color: Colors.blue),
                           _buildButton('log', color: Colors.blue),
-                          _buildButton('P', color: Colors.blue),
+                          _buildButton('!', color: Colors.blue),
                           _buildButton('÷', color: Colors.orange),
                         ],
                       ),
@@ -488,8 +577,8 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                       child: Row(
                         children: [
                           _buildButton('AC', color: Colors.grey),
-                          _buildButton('!', color: Colors.blue),
-                          _buildButton('C', color: Colors.blue),
+                          _buildButton('⌫', color: Colors.grey),
+                          _buildButton('C', color: Colors.grey),
                           _buildButton('×', color: Colors.orange),
                         ],
                       ),
