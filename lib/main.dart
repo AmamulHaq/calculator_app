@@ -147,7 +147,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
         _evaluateExpression();
       } else {
         // Handle special functions that need parentheses
-        if (['sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'ln', 'log', '√x', 'e^x', 'P', 'C'].contains(value)) {
+        if (['sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'ln', 'log', '√', 'e^', 'P', 'C'].contains(value)) {
           _expression += '$value(';
         } else if (value == '!') {
           _expression += '!';
@@ -199,15 +199,15 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
 
       // Functions
       final funcs = [
-        'sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'log', 'ln', '√x', 'e^x', 'P', 'C', '!'
+        'sin', 'cos', 'tan', 'cosec', 'sec', 'cot', 'log', 'ln', '√', 'e^', 'P', 'C', '!'
       ];
       bool matched = false;
       for (var func in funcs) {
         if (expression.startsWith(func, i)) {
           // Handle function name mapping
           String tokenValue = func;
-          if (func == '√x') tokenValue = '√';
-          if (func == 'e^x') tokenValue = 'e^';
+          if (func == '√') tokenValue = '√';
+          if (func == 'e^') tokenValue = 'e^';
           
           tokens.add(Token(TokenType.function, tokenValue));
           i += func.length;
@@ -549,7 +549,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                           _buildButton('sin', color: Colors.purple),
                           _buildButton('cos', color: Colors.purple),
                           _buildButton('tan', color: Colors.purple),
-                          _buildButton('√x', color: Colors.blue),
+                          _buildButton('√', color: Colors.blue),
                         ],
                       ),
                     ),
@@ -559,7 +559,7 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                           _buildButton('cosec', color: Colors.purple),
                           _buildButton('sec', color: Colors.purple),
                           _buildButton('cot', color: Colors.purple),
-                          _buildButton('e^x', color: Colors.blue),
+                          _buildButton('e^', color: Colors.blue),
                         ],
                       ),
                     ),
@@ -610,6 +610,16 @@ class _ScientificCalculatorState extends State<ScientificCalculator> {
                           _buildButton('2'),
                           _buildButton('3'),
                           _buildButton('^', color: Colors.blue),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          _buildButton('(', color: Colors.orange),
+                          _buildButton(')', color: Colors.orange),
+                          _buildButton('π', color: Colors.blue),
+                          _buildButton('e', color: Colors.blue),
                         ],
                       ),
                     ),

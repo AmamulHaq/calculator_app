@@ -134,14 +134,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: ['x', 'y', 'z'].map((varName) {
                 return ChoiceChip(
-                  label: Text(varName),
+                  label: Text(
+                    varName,
+                    style: TextStyle(
+                      color: _selectedVariable == varName
+                          ? Colors.white
+                          : Colors.white,
+                    ),
+                  ),
                   selected: _selectedVariable == varName,
                   onSelected: (_) => _selectVariable(varName),
-                  selectedColor: Theme.of(context).colorScheme.primaryContainer,
-                  labelStyle: TextStyle(
-                    color: _selectedVariable == varName 
-                        ? Theme.of(context).colorScheme.onPrimaryContainer
-                        : Theme.of(context).colorScheme.onSurface,
+                  selectedColor: const Color.fromARGB(255, 25, 118, 210),
+                  backgroundColor: const Color.fromARGB(255, 33, 150, 243),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 );
               }).toList(),
@@ -236,20 +242,39 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _buildButton(BuildContext context, String text) {
-    final isSpecial = ['C', '⌫', '=', 'Diff', 'Int'].contains(text);
+    final isSpecial = ['C', '⌫', '='].contains(text);
+    final isBlueSpecial = ['Diff', 'Int'].contains(text);
     final isVariable = ['x', 'y', 'z'].contains(text);
     final isSelected = isVariable && text == _selectedVariable;
-    final isOperator = ['+', '-', '*', '/', '^'].contains(text);
+    final isOperator = ['+', '-', '*', '/', '^', '(', ')'].contains(text);
+
+    // Define the specified colors
+    final blueColor = const Color.fromARGB(255, 33, 150, 243);   // (33,150,243,255)
+    final amberColor = const Color.fromARGB(255, 255, 152, 0);   // (255,152,0,255)
+    final greyColor = const Color.fromARGB(255, 158, 158, 158);  // (158,158,158,255)
+    final selectedVariableColor = const Color.fromARGB(255, 25, 118, 210); // Darker blue for selected
 
     Color? buttonColor;
+    Color? textColor;
+
     if (isSelected) {
-      buttonColor = Theme.of(context).colorScheme.primaryContainer;
-    } else if (isSpecial) {
-      buttonColor = Theme.of(context).colorScheme.primary;
+      buttonColor = selectedVariableColor;
+      textColor = Colors.white;
+    } else if (isBlueSpecial) {
+      buttonColor = blueColor;
+      textColor = Colors.white;
+    } else if (isVariable) {
+      buttonColor = blueColor;
+      textColor = Colors.white;
     } else if (isOperator) {
-      buttonColor = Theme.of(context).colorScheme.secondary;
+      buttonColor = amberColor;
+      textColor = Colors.white;
+    } else if (isSpecial) {
+      buttonColor = greyColor;
+      textColor = Colors.white;
     } else {
       buttonColor = Theme.of(context).colorScheme.surface;
+      textColor = Theme.of(context).colorScheme.onSurface;
     }
 
     return Expanded(
@@ -259,11 +284,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.all(12.0),
             backgroundColor: buttonColor,
-            foregroundColor: isSelected 
-                ? Theme.of(context).colorScheme.onPrimaryContainer
-                : isSpecial || isOperator
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Theme.of(context).colorScheme.onSurface,
+            foregroundColor: textColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12.0),
             ),
